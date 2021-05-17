@@ -88,6 +88,9 @@ class WCMP_Checkout
             $deps[] = "wcmp-checkout-fields";
         }
 
+        /*
+         * Show delivery options also for shipments on backorder
+         */
         if (! $this->shouldShowDeliveryOptions()) {
             return;
         }
@@ -526,35 +529,33 @@ class WCMP_Checkout
     }
 
     /**
-     * Returns true if any product in the loop is:
-     *  - physical
-     *  - not on backorder OR user allows products on backorder to have delivery options
+     * Show delivery options also for shipments on backorder
      * @return bool
      */
     private function shouldShowDeliveryOptions(): bool
     {
-        $showForBackorders   = WCMYPA()->setting_collection->isEnabled(WCMYPA_Settings::SETTINGS_SHOW_DELIVERY_OPTIONS_FOR_BACKORDERS);
-        $showDeliveryOptions = false;
+        // $backorderDeliveryOptions causes the options to be displayed also when product is in backorder
+        $backorderDeliveryOptions = WCMYPA()->setting_collection->isEnabled(WCMYPA_Settings::SETTINGS_SHOW_DELIVERY_OPTIONS_FOR_BACKORDERS);
+        $show                     = true;
+
+        if ($backorderDeliveryOptions) {
+            return $show;
+        }
 
         foreach (WC()->cart->get_cart() as $cartItem) {
             /**
              * @var WC_Product $product
              */
-            $product = $cartItem['data'];
+            $product       = $cartItem['data'];
+            $isOnBackorder = $product->is_on_backorder($cartItem['quantity']);
 
-            if (! $product->is_virtual()) {
-
-                $isOnBackOrder = $product->is_on_backorder($cartItem['quantity']);
-                if (! $showForBackorders && $isOnBackOrder) {
-                    $showDeliveryOptions = false;
-                    break;
-                }
-
-                $showDeliveryOptions = true;
+            if ($isOnBackorder) {
+                $show = false;
+                break;
             }
         }
 
-        return $showDeliveryOptions;
+        return $show;
     }
 }
 
